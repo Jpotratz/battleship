@@ -10,6 +10,9 @@ import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -49,12 +52,19 @@ public class gameboard extends Application {
 	public static String lastAction = "test";
 	// String to hold the text of what occured
 	public static String whatHappened = "test";
+	// New constructors for each difficulty button
+	public static ButtonType beginner = new ButtonType("Beginner 6x6");
+	public static ButtonType standard = new ButtonType("Standard 9x9");
+	public static ButtonType advanced = new ButtonType("Advanced 12x12");
+	public static ButtonType revealMap = new ButtonType("Reveal the map");
+	// Boolean for revealing the map
+	public static boolean revealMapCheat = false;
 
 	// Generate the content for the pane. Includes Scoreboard position, tiles, ship
 	// placement and missile count
-	public Parent createContent(int level) {
+	public Parent createContent() {
 		// Content creation for Beginner level
-		if (level == 1) {
+		if (battleship.difficulty == 1) {
 			board = new Tile[7][7];
 			// Sets the size of the pane "root" to 700x700 pixels
 			root.setPrefSize(1005, 700);
@@ -72,6 +82,7 @@ public class gameboard extends Application {
 					board[j][i] = tile;
 				}
 			}
+			actiongame.initializeTrackHits(7);
 			initializeShipPositionArray(7);
 			scoreboard.setTranslateX(700);
 			scoreboard.setTranslateY(0);
@@ -83,7 +94,7 @@ public class gameboard extends Application {
 
 		}
 		// Content creation for Standard level
-		if (level == 2) {
+		if (battleship.difficulty == 2) {
 			board = new Tile[10][10];
 			// Sets the size of the pane "root" to 1000x1000 pixels
 			root.setPrefSize(1005, 700);
@@ -101,6 +112,7 @@ public class gameboard extends Application {
 					board[j][i] = tile;
 				}
 			}
+			actiongame.initializeTrackHits(10);
 			initializeShipPositionArray(10);
 			scoreboard.setTranslateX(700);
 			scoreboard.setTranslateY(0);
@@ -111,7 +123,7 @@ public class gameboard extends Application {
 			generateShips();
 		}
 		// Content creation for Advanced level
-		if (level == 3) {
+		if (battleship.difficulty == 3) {
 			board = new Tile[13][13];
 			// Sets the size of the pane "root" to 1300x1300 pixels
 			root.setPrefSize(1005, 700);
@@ -129,6 +141,7 @@ public class gameboard extends Application {
 					board[j][i] = tile;
 				}
 			}
+			actiongame.initializeTrackHits(13);
 			initializeShipPositionArray(13);
 			scoreboard.setTranslateX(700);
 			scoreboard.setTranslateY(0);
@@ -196,7 +209,9 @@ public class gameboard extends Application {
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
-		primaryStage.setScene(new Scene(createContent(battleship.difficulty)));
+		getDifficulty();
+		cheats();
+		primaryStage.setScene(new Scene(createContent()));
 		primaryStage.show();
 		primaryStage.toFront();
 	}
@@ -227,13 +242,17 @@ public class gameboard extends Application {
 			setOnMouseClicked(event -> {
 				// If left click
 				if (event.getButton() == MouseButton.PRIMARY) {
-					missilesFired = missilesFired + 1;
-					if (actiongame.determineHit(this.getXCoord(), this.getYCoord())) {
-						// Call the drawChar function
-						drawChar(actiongame.findShip(getXCoord(), getYCoord()).getShipIcon());
-					} else
-						drawChar('X');
+					if (!(this.getXCoord() == 0 || this.getYCoord() == 0)) {
+						missilesFired = missilesFired + 1;
+						if (actiongame.determineHit(this.getXCoord(), this.getYCoord())) {
+							// Call the drawChar function
+							drawChar(actiongame.findShip(getXCoord(), getYCoord()).getShipIcon());
+						} else {
+							drawChar('X');
+						}
+					}
 				}
+
 			});
 
 		};
@@ -282,9 +301,8 @@ public class gameboard extends Application {
 		// Damage the ship because it has been hit
 		public void hitShip() {
 			shipHealth = shipHealth - 1;
-			missiles = missiles - 1;
-			actiongame
-					.updateWhatHappened("You have hit their " + getShipName() + "! Remaining HP is " + getShipHealth());
+			actiongame.updateWhatHappened(
+					"You have hit their " + getShipName() + "! \nNice Hit! \nRemaining HP is " + getShipHealth());
 			if (shipHealth == 0) {
 				sinkShip();
 			}
@@ -294,14 +312,13 @@ public class gameboard extends Application {
 
 		// Let the player know you missed the ship
 		public void missShip() {
-			missiles = missiles - 1;
-			actiongame.updateWhatHappened("You missed!");
+			actiongame.updateWhatHappened("You missed! You suck!");
 			updateScoreboard();
 		}
 
 		// Sink the ship because its health is 0
 		public void sinkShip() {
-			actiongame.updateWhatHappened("You have sunk their " + getShipName() + "!");
+			actiongame.updateWhatHappened("You have sunk their " + getShipName() + "!\nYou are good at this!");
 			isSunk = true;
 			shipsRemaining = shipsRemaining - 1;
 			updateScoreboard();
@@ -482,7 +499,9 @@ public class gameboard extends Application {
 	public void drawShipVert(int startingX, int startingY, Ship ship) {
 		for (int i = 0; i < ship.getShipLength(); i++) {
 			shipPositions[startingX][startingY + i] = ship.getShipIcon();
-			// board[startingX][startingY + i].drawChar(ship.getShipIcon());
+			if (revealMapCheat) {
+				board[startingX][startingY + i].drawChar(ship.getShipIcon());
+			}
 		}
 	}
 
@@ -490,7 +509,9 @@ public class gameboard extends Application {
 	public void drawShipHori(int startingX, int startingY, Ship ship) {
 		for (int i = 0; i < ship.getShipLength(); i++) {
 			shipPositions[startingX + i][startingY] = ship.getShipIcon();
-			// board[startingX + i][startingY].drawChar(ship.getShipIcon());
+			if (revealMapCheat) {
+				board[startingX + i][startingY].drawChar(ship.getShipIcon());
+			}
 		}
 	}
 
@@ -542,9 +563,41 @@ public class gameboard extends Application {
 	// Initialize the array of characters to be 'Z'
 	public static void initializeShipPositionArray(int size) {
 		shipPositions = new char[size][size];
-		for (int row = 0; row < size; row++)
-			for (int col = 0; col < size; col++)
+		for (int row = 1; row < size; row++)
+			for (int col = 1; col < size; col++)
 				shipPositions[row][col] = 'Z';
+	}
+
+	// This function creates an alert box asking you to choose your difficulty.
+	public static void getDifficulty() {
+		Alert alert = new Alert(AlertType.CONFIRMATION, " ", beginner, standard, advanced);
+		alert.setTitle("Welcome to Battleship!");
+		alert.setHeaderText(
+				"Please choose your difficulty \n\n Please note: Beginner sometimes fails to load due to the small size, simply restart.");
+		alert.setContentText("Created by James Potratz for CSIS 222");
+		alert.showAndWait();
+		if (alert.getResult() == beginner) {
+			battleship.difficulty = 1;
+		}
+		if (alert.getResult() == standard) {
+			battleship.difficulty = 2;
+		}
+		if (alert.getResult() == advanced) {
+			battleship.difficulty = 3;
+		}
+	}
+
+	// This function is to make the teachers grading easier
+	public static void cheats() {
+		Alert alert = new Alert(AlertType.CONFIRMATION, "Would you like to cheat?", revealMap, ButtonType.NO);
+		alert.setTitle("Cheats");
+		alert.setHeaderText(
+				"Would you like to cheat? \n Please note, when clicking on a ship, it will already be revealed.");
+		alert.setContentText("Created by James Potratz for CSIS 222");
+		alert.showAndWait();
+		if (alert.getResult() == revealMap) {
+			revealMapCheat = true;
+		}
 	}
 
 	// Launch the applications

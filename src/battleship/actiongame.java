@@ -19,6 +19,11 @@ public class actiongame extends gameboard {
 
 	// This function determines whether you successfully hit a ship
 	public static boolean determineHit(int x, int y) {
+		missiles = missiles - 1;
+		if (hasBeenHit(x, y)) {
+			checkIfLost();
+			return false;
+		}
 		updateLastAction(x, y);
 		if (gameboard.shipPositions[x][y] != 'Z') {
 			findShip(x, y).hitShip();
@@ -70,6 +75,7 @@ public class actiongame extends gameboard {
 
 	public static void updateLastAction(int xcoord, int ycoord) {
 		lastAction = "You shot a missile at " + xcoord + ", " + convertCoord(ycoord);
+		trackHits[xcoord][ycoord] = 1;
 	}
 
 	public static void updateWhatHappened(String string) {
@@ -84,7 +90,7 @@ public class actiongame extends gameboard {
 
 	public static void checkIfWon() {
 		if (shipsRemaining == 0) {
-			Alert alert = new Alert(AlertType.CONFIRMATION, "You won!", ButtonType.FINISH);
+			Alert alert = new Alert(AlertType.CONFIRMATION, "You won! Thanks for playing!", ButtonType.FINISH);
 			alert.showAndWait();
 			Platform.exit();
 		}
@@ -92,7 +98,8 @@ public class actiongame extends gameboard {
 
 	public static void checkIfLost() {
 		if (missiles == 0 && shipsRemaining > 0) {
-			Alert alert = new Alert(AlertType.CONFIRMATION, "You ran out of missiles! You lose!", ButtonType.FINISH);
+			Alert alert = new Alert(AlertType.CONFIRMATION, "You ran out of missiles! You lose! \n Thanks for playing!",
+					ButtonType.FINISH);
 			alert.showAndWait();
 			Platform.exit();
 		}
@@ -101,10 +108,21 @@ public class actiongame extends gameboard {
 	// Initialize the trackHits array to be 0
 	// 0 represents not hit, 1 represents hit
 	public static void initializeTrackHits(int size) {
-		shipPositions = new char[size][size];
+		trackHits = new int[size][size];
 		for (int row = 0; row < size; row++)
 			for (int col = 0; col < size; col++)
-				shipPositions[row][col] = 0;
+				trackHits[row][col] = 0;
+	}
+
+	// Function to see if the area has already been shot
+	public static boolean hasBeenHit(int x, int y) {
+		if (trackHits[x][y] == 1) {
+			updateWhatHappened("You already shot a missile here bozo!");
+			gameboard.updateScoreboard();
+			return true;
+		} else
+			return false;
+
 	}
 
 	// Launch the Gameboard, which launches the game
